@@ -213,6 +213,9 @@ ariaLabel.edit=Edit {0}
 # Program Summary Title
 title.programSummary=Program application summary
 
+# Error when there was an exception while submitting the application
+banner.errorSavingApplication=Error saving application
+
 #---------------------------------------------------------------------------------------------#
 # APPLICANT APPLICATION CONFIRMATION PAGE - text for a page confirming application submission #
 #---------------------------------------------------------------------------------------------#
