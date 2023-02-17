@@ -560,11 +560,16 @@ public final class ProgramServiceImpl implements ProgramService {
         .isPresent()) {
       throw new DuplicateStatusException(status.statusText());
     }
+    List<StatusDefinitions.Status> statusesCopy =
+        Lists.newArrayList(program.statusDefinitions().getStatuses());
+    if (status.defaultStatus().orElse(false)) {
+      statusesCopy = unsetDefaultStatus(statusesCopy, Optional.empty());
+    }
     program
         .statusDefinitions()
         .setStatuses(
             ImmutableList.<StatusDefinitions.Status>builder()
-                .addAll(program.statusDefinitions().getStatuses())
+                .addAll(statusesCopy)
                 .add(status)
                 .build());
 
@@ -573,6 +578,25 @@ public final class ProgramServiceImpl implements ProgramService {
                 programRepository.updateProgramSync(program.toProgram()).getProgramDefinition())
             .toCompletableFuture()
             .join());
+  }
+
+  private List<StatusDefinitions.Status> unsetDefaultStatus(
+      List<StatusDefinitions.Status> statuses, Optional<String> exceptStatusName) {
+    return statuses.stream()
+        .<StatusDefinitions.Status>map(
+            status -> {
+              if (exceptStatusName.map(name -> name.equals(status.statusText())).orElse(false)) {
+                return status;
+              } else {
+                return StatusDefinitions.Status.builder()
+                    .setStatusText(status.statusText())
+                    .setLocalizedStatusText(status.localizedStatusText())
+                    .setLocalizedEmailBodyText(status.localizedEmailBodyText())
+                    .setDefaultStatus(Optional.of(false))
+                    .build();
+              }
+            })
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -601,7 +625,12 @@ public final class ProgramServiceImpl implements ProgramService {
         && statusNameToIndex.containsKey(editedStatus.statusText())) {
       throw new DuplicateStatusException(editedStatus.statusText());
     }
+    if (editedStatus.defaultStatus().orElse(false)) {
+      statusesCopy = unsetDefaultStatus(statusesCopy, Optional.of(toReplaceStatusName));
+    }
+
     statusesCopy.set(statusNameToIndex.get(toReplaceStatusName), editedStatus);
+
     program.statusDefinitions().setStatuses(ImmutableList.copyOf(statusesCopy));
 
     return ErrorAnd.of(
