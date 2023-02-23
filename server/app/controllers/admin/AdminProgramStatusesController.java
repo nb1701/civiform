@@ -74,6 +74,8 @@ public final class AdminProgramStatusesController extends CiviFormController {
     requestChecker.throwIfProgramNotDraft(programId);
     ProgramDefinition program = service.getProgramDefinition(programId);
     int previousStatusCount = program.statusDefinitions().getStatuses().size();
+    Optional<StatusDefinitions.Status> previousDefaultStatus =
+        program.toProgram().getDefaultStatus();
 
     Form<ProgramStatusesForm> form =
         formFactory
@@ -121,7 +123,13 @@ public final class AdminProgramStatusesController extends CiviFormController {
     }
     boolean isUpdate =
         previousStatusCount == mutateResult.getResult().statusDefinitions().getStatuses().size();
-    return redirect(indexUrl).flashing("success", isUpdate ? "Status updated" : "Status created");
+    String toastMessage = isUpdate ? "Status updated" : "Status created";
+    if (setDefault
+        && previousDefaultStatus.isPresent()
+        && !previousDefaultStatus.get().statusText().equals(form.get().getConfiguredStatusText())) {
+      toastMessage = form.get().getStatusText() + " has been updated to the default status";
+    }
+    return redirect(indexUrl).flashing("success", toastMessage);
   }
 
   private ErrorAnd<ProgramDefinition, CiviFormError> createOrEditStatusFromFormData(
