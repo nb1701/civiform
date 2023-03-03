@@ -448,3 +448,13 @@ adminValidation.multiOptionEmpty=Multi option questions cannot have blank option
 error.notFoundTitle=We were unable to find the page you tried to visit
 error.notFoundDescription='Please go back or return to the '
 error.notFoundDescriptionLink=homepage
+
+#-------------------------------------------------------------#
+# EMAILS - boilerplate text contained in emails sent to users #
+#-------------------------------------------------------------#
+email.applicationReceivedBody=Your application to program {0} has been received. Your applicant ID is {1} and the application ID is {2}
+email.applicationReceivedSubject=Your application to program {0} is received
+email.loginToCiviform=Log in to Civiform at {0}
+email.tiApplicationSubmittedBody=The application to program {0} as applicant {1} has been received, and the application ID is {2}.
+email.tiApplicationSubmittedSubject=You submitted an application for program {0} on behalf of applicant {1}
+email.tiManageYourClients=Manage your clients at {0}.
