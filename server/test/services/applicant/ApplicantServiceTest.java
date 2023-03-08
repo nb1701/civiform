@@ -911,6 +911,87 @@ public class ApplicantServiceTest extends ResetPostgres {
   }
 
   @Test
+  public void submitApplication_setsStatusToDefault() {
+    StatusDefinitions.Status status =
+        StatusDefinitions.Status.builder()
+            .setStatusText("Waiting")
+            .setLocalizedStatusText(LocalizedStrings.withDefaultValue("Waiting"))
+            .setDefaultStatus(Optional.of(true))
+            .build();
+    createProgramWithStatusDefinitions(new StatusDefinitions(ImmutableList.of(status)));
+
+    Applicant applicant = subject.createApplicant().toCompletableFuture().join();
+    applicant.setAccount(resourceCreator.insertAccount());
+    applicant.save();
+    ImmutableMap<String, String> updates =
+        ImmutableMap.<String, String>builder()
+            .put(Path.create("applicant.name").join(Scalar.FIRST_NAME).toString(), "Alice")
+            .put(Path.create("applicant.name").join(Scalar.LAST_NAME).toString(), "Doe")
+            .build();
+    subject
+        .stageAndUpdateIfValid(applicant.id, programDefinition.id(), "1", updates, false)
+        .toCompletableFuture()
+        .join();
+
+    Application application =
+        subject
+            .submitApplication(
+                applicant.id,
+                programDefinition.id(),
+                trustedIntermediaryProfile,
+                /* eligibilityFeatureEnabled= */ false)
+            .toCompletableFuture()
+            .join();
+    application.refresh();
+
+    assertThat(application.getLatestStatus().get()).isEqualTo("Waiting");
+    assertThat(application.getApplicationEvents().size()).isEqualTo(1);
+    ApplicationEvent event = application.getApplicationEvents().get(0);
+    assertThat(event.getEventType().name()).isEqualTo("STATUS_CHANGE");
+    assertThat(event.getDetails().statusEvent()).isNotEmpty();
+    assertThat(event.getDetails().statusEvent().get().statusText()).isEqualTo("Waiting");
+    assertThat(event.getDetails().statusEvent().get().emailSent()).isEqualTo(true);
+  }
+
+  @Test
+  public void submitApplication_doesNotChangeStatusWhenNoDefaultStatus() {
+    StatusDefinitions.Status status =
+        StatusDefinitions.Status.builder()
+            .setStatusText("Waiting")
+            .setLocalizedStatusText(LocalizedStrings.withDefaultValue("Waiting"))
+            .setDefaultStatus(Optional.of(false))
+            .build();
+    createProgramWithStatusDefinitions(new StatusDefinitions(ImmutableList.of(status)));
+
+    Applicant applicant = subject.createApplicant().toCompletableFuture().join();
+    applicant.setAccount(resourceCreator.insertAccount());
+    applicant.save();
+    ImmutableMap<String, String> updates =
+        ImmutableMap.<String, String>builder()
+            .put(Path.create("applicant.name").join(Scalar.FIRST_NAME).toString(), "Alice")
+            .put(Path.create("applicant.name").join(Scalar.LAST_NAME).toString(), "Doe")
+            .build();
+    subject
+        .stageAndUpdateIfValid(applicant.id, programDefinition.id(), "1", updates, false)
+        .toCompletableFuture()
+        .join();
+
+    Application application =
+        subject
+            .submitApplication(
+                applicant.id,
+                programDefinition.id(),
+                trustedIntermediaryProfile,
+                /* eligibilityFeatureEnabled= */ false)
+            .toCompletableFuture()
+            .join();
+    application.refresh();
+
+    assertThat(application.getLatestStatus()).isEmpty();
+    assertThat(application.getApplicationEvents().size()).isEqualTo(0);
+  }
+
+  @Test
   public void submitApplication_failsWithApplicationSubmissionException() {
     assertThatExceptionOfType(CompletionException.class)
         .isThrownBy(
@@ -1772,6 +1853,15 @@ public class ApplicantServiceTest extends ResetPostgres {
         ProgramBuilder.newDraftProgram("test program", "desc")
             .withBlock()
             .withRequiredQuestionDefinitions(ImmutableList.copyOf(questions))
+            .buildDefinition();
+  }
+
+  private void createProgramWithStatusDefinitions(StatusDefinitions statuses) {
+    programDefinition =
+        ProgramBuilder.newDraftProgram("test program", "desc")
+            .withStatusDefinitions(statuses)
+            .withBlock()
+            .withRequiredQuestionDefinitions(ImmutableList.of(questionDefinition))
             .buildDefinition();
   }
 
